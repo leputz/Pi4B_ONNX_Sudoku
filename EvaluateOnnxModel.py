@@ -6,21 +6,6 @@ import matplotlib.pyplot as plt
 
 from digitnet_model import DigitNet
 
-DATA_DIR = "data_v4"
-ARTI_DIR = "artifacts_v4"
-os.makedirs(ARTI_DIR, exist_ok=True)
-
-ONNX_PATH = os.path.join(ARTI_DIR, "sudoku_digitnet.onnx")  # fp32
-
-# Same normalization as training (and force grayscale → 1 channel)
-tfm_val = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))
-])
-val_ds = datasets.ImageFolder(os.path.join(DATA_DIR, "val"), transform=tfm_val)
-val_loader = DataLoader(val_ds, batch_size=512, shuffle=False, num_workers=0)
-
 DIGIT_NAMES = [str(i) for i in range(10)]  # 0 = blank, 1..9 = digits
 
 
@@ -90,7 +75,7 @@ def plot_confusion_matrix(cm, classes=DIGIT_NAMES, normalize=False, title="Confu
     plt.show()
 
 
-def sample_predictions_onnx(onnx_path, dataset, k=24, seed=0):
+def sample_predictions_onnx(onnx_path, dataset, arti_dir, k=24, seed=0):
     """Show a grid of sample predictions (mix of correct and misclassified)."""
     import onnxruntime as ort
     rng = np.random.default_rng(seed)
@@ -129,14 +114,43 @@ def sample_predictions_onnx(onnx_path, dataset, k=24, seed=0):
         plt.title(title, color=color, fontsize=9)
         plt.axis("off")
     plt.tight_layout()
-    out = os.path.join(ARTI_DIR, "samples_grid.png")
+    
+    # Save the image to the specified artifact directory
+    out = os.path.join(arti_dir, "samples_grid.png")
     plt.savefig(out, dpi=150)
     print(f"Saved: {out}")
     plt.show()
 
-def main():
-    # Optional: evaluate the best PyTorch checkpoint for reference
-    pt_ckpt = os.path.join(ARTI_DIR, "digitnet_best.pth")
+
+def evaluate_models(
+    data_dir: str = "data_v4",
+    arti_dir: str = "artifacts_v4",
+    batch_size: int = 512,
+    k_samples: int = 24
+):
+    """
+    Evaluates PyTorch and ONNX models, generates confusion matrices and sample grids.
+    
+    Args:
+        data_dir (str): Directory containing the validation dataset.
+        arti_dir (str): Directory where the model artifacts are stored and plots will be saved.
+        batch_size (int): Batch size for evaluation.
+        k_samples (int): Number of sample predictions to plot.
+    """
+    os.makedirs(arti_dir, exist_ok=True)
+    onnx_path = os.path.join(arti_dir, "sudoku_digitnet.onnx")
+    pt_ckpt = os.path.join(arti_dir, "digitnet_best.pth")
+
+    # Prepare dataset and dataloader
+    tfm_val = transforms.Compose([
+        transforms.Grayscale(num_output_channels=1),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+    val_ds = datasets.ImageFolder(os.path.join(data_dir, "val"), transform=tfm_val)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    # 1. Optional: evaluate the best PyTorch checkpoint for reference
     if os.path.exists(pt_ckpt):
         model = DigitNet()
         model.load_state_dict(torch.load(pt_ckpt, map_location="cpu"))
@@ -145,27 +159,40 @@ def main():
     else:
         print("No PyTorch checkpoint found; skipping PT eval.")
 
-    # Evaluate ONNX fp32
-    if os.path.exists(ONNX_PATH):
-        acc, cm = confusion_matrix_onnx(ONNX_PATH, val_loader)
+    # 2. Evaluate ONNX fp32
+    if os.path.exists(onnx_path):
+        acc, cm = confusion_matrix_onnx(onnx_path, val_loader)
         print(f"ONNX fp32 val acc: {acc:.4f}")
         print("Confusion matrix (rows=true, cols=pred):\n", cm)
 
         # Plots: counts + normalized
-        plot_confusion_matrix(cm, normalize=False,
-                              title="ONNX fp32 – Confusion (counts)",
-                              fname=os.path.join(ARTI_DIR, "cm_fp32_counts.png"))
-        plot_confusion_matrix(cm, normalize=True,
-                              title="ONNX fp32 – Confusion (row-normalized)",
-                              fname=os.path.join(ARTI_DIR, "cm_fp32_norm.png"))
+        plot_confusion_matrix(
+            cm, 
+            normalize=False,
+            title="ONNX fp32 – Confusion (counts)",
+            fname=os.path.join(arti_dir, "cm_fp32_counts.png")
+        )
+        plot_confusion_matrix(
+            cm, 
+            normalize=True,
+            title="ONNX fp32 – Confusion (row-normalized)",
+            fname=os.path.join(arti_dir, "cm_fp32_norm.png")
+        )
 
         # Sample predictions grid
         try:
-            sample_predictions_onnx(ONNX_PATH, val_ds, k=24)
+            sample_predictions_onnx(onnx_path, val_ds, arti_dir, k=k_samples)
         except Exception as e:
             print("Sample grid skipped:", e)
     else:
-        print("Missing ONNX model:", ONNX_PATH)
+        print("Missing ONNX model:", onnx_path)
+
 
 if __name__ == "__main__":
-    main()
+    # Execute with default parameters
+    evaluate_models(
+        data_dir="data_v1",
+        arti_dir="artifacts_v1",
+        batch_size=512,
+        k_samples=24
+    )
