@@ -158,6 +158,8 @@ def prepare_data(
             else:
                 # NEW BEHAVIOR: Crop clean page first, then warp each individual cell inside save_crops
                 save_crops(page, geom, puzzle, split_name, base_id=f"{i:06d}_cam", is_local_cam=True)
+                warped_page = aug_camera_global(page)
+                cv.imwrite(str(grid_dir / f"{i:06d}_cam.png"), warped_page)
                 # Note: We do not save a warped page here because the whole page is not warped.
 
     # ---- Execute generation logic ----
@@ -172,9 +174,9 @@ if __name__ == "__main__":
     # This produces bad data where digit 6 might become 9 due to grid lines.
     prepare_data(
         parquet_path="train_1.parquet",
-        out_dir="data_old",
-        n_train=1000,
-        n_val=100,
+        out_dir="data",
+        n_train=2000,
+        n_val=200,
         use_global_aug=True  
     )
 
@@ -183,7 +185,7 @@ if __name__ == "__main__":
     prepare_data(
         parquet_path="train_1.parquet",
         out_dir="data_new",
-        n_train=1000,
-        n_val=100,
+        n_train=2000,
+        n_val=200,
         use_global_aug=False 
     )
