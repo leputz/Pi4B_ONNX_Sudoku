@@ -19,7 +19,7 @@ All experiments in this article were conducted on a Raspberry Pi 4B. Interested 
 ## Experimental Results
 
 Figure 1 and Figure 2 show the confusion matrices obtained by training the model with the datasets generated using the original data synthesis method and the improved method, respectively. It can be clearly observed that:
-- In Figure 1, the correct detection probability for digits 6 is 0! Moreover, they have a 40% and 37% probability of being misclassified as digit 9, respectively!
+- In Figure 1, the correct detection probability for digit 6 is 0! Moreover, it has a 40% probability of being misclassified as digit 9.
 - In Figure 2, the correct detection rate for every digit is close to 100%.
 
 **Figure 1:**
@@ -40,7 +40,7 @@ Confusion matrix (rows=true, cols=pred):
 ```
 
 **Figure 2:**
-```test
+```text
 ONNX eval: 100%| 32/32 [00:24<00:00,  1.31it/s]
 ONNX fp32 val acc: 0.9815
 Confusion matrix (rows=true, cols=pred):
@@ -59,3 +59,10 @@ Confusion matrix (rows=true, cols=pred):
 In the original data synthesis method, for each Sudoku solution, a clean image containing the 9x9=81 grid and digits is first generated with black lines on a white background. Then, jitter, perspective transformation, and Gaussian blur are applied to the entire image to simulate real-world photography. After that, the 9x9=81 cells are evenly cropped from the photo. However, because the original clean image undergoes perspective transformation *before* being evenly cropped, the resulting 81 cells end up containing the black border lines. These border lines interfere with model training, especially the recognition of the digit 6.
 
 The improved data synthesis method instead first evenly crops the clean image into 81 cells, and then applies jitter, perspective transformation, and Gaussian blur to each individual cell. Although the digits within each cell may experience more severe distortion after the perspective transformation, the elimination of the black border line interference significantly improves model training and completely eliminates the misclassification of the digit 6.
+
+In addition, the dataset size also impacts the model training results. In the previous experiments, the number of training images per digit was 1000. By doubling this number to 2000 and retraining, we plotted and compared the accuracy at each epoch (see Figure 3). It can be observed that only after 5 epochs did the accuracy under the original data synthesis method catch up with and consistently surpass that of the new data synthesis method. This indicates that the original "noisy" global augmentation acts as a strong regularization, requiring more data to fully realize its potential.
+
+**Figure 3:** 
+
+<img src="./results/val_acc_comparison.png" alt="Validation Accuracy Comparison" width="600">
+

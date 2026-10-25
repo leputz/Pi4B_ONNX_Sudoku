@@ -125,11 +125,10 @@ wget https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset/resolve/main/train_
 
 ---
 
-## 🚀 Next Steps
+## 🚀 Run the pipeline
 
-Now that the environment and dataset are ready, it is time to run the data preparation scripts for performance benchmarking:
+Now that the environment and dataset are ready, it is time to run the pipeline script for performance benchmarking:
 
 ```bash
-python3 PrepareData.py
-# or v2, v3, v4...
+python3 RunPipeline.py
 ```
